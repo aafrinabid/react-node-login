@@ -5,7 +5,8 @@ const bcrypt=require('bcrypt');
 const cors=require('cors');
 const jwt=require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
-const session=require('express-session')
+const session=require('express-session');
+const res = require('express/lib/response');
 
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
@@ -43,8 +44,14 @@ app.post('/register',async(req,res)=>{
             const hashedPassword=await bcrypt.hash(password,10);
             const NewUser=await pool.query('INSERT INTO users(username,password,email,roles) VALUES($1,$2,$3,$4) RETURNING *',
             [username,hashedPassword,email,'user']);
-            console.log(NewUser.rows[0])
-            res.status(200).json(NewUser.rows[0])
+            console.log(NewUser.rows[0]);
+            const id=user.rows[0].user_id;
+            const token= jwt.sign({id},'jwtsecret',{
+                expiresIn:300,
+            })
+            console.log(token);
+            res.status(200).json({token:token,auth:true})
+
         }
         
     }
@@ -52,7 +59,28 @@ app.post('/register',async(req,res)=>{
         res.status(400).json(err.message)
     }
 })
+ const verifyJwt=(req,res,next)=>{
+     const token=req.headers["x-access-token"];
 
+     if(!token){
+         res.send('no token is there')
+     }else{
+         jwt.verify(token,"jwtSecret",(err,decoded)=>{
+             if(err){
+                 res.json({auth:false,message:'authorization failed'})
+             }else{
+                 console.log('success verification');
+                 req.userId=decoded.id;
+                 next();
+             }
+         })
+     }
+
+ }
+
+ app.post('/isAuth',verifyJwt,(req,res)=>{
+     return res.json({auth:true,message:'you are authenticated'})
+ })
 app.post('/login',async(req,res)=>{
     try{
         let loginStatus=false
@@ -64,8 +92,14 @@ app.post('/login',async(req,res)=>{
             if(compPass){
                  loginStatus=true
                  req.session.user=user.rows[0];
+                 const id=user.rows[0].user_id;
+                 const token= jwt.sign({id},'jwtsecret',{
+                     expiresIn:300,
+                 })
+                 console.log(token);
+                 const result=user.rows[0];
                 // res.json([user,loginStatus]);
-                res.status(200).json(user.rows[0])
+                res.status(200).json({result,token:token,auth:true})
             }else{
                 throw new Error('password is wrong')
             }
