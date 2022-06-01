@@ -6,7 +6,6 @@ const cors=require('cors');
 const jwt=require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const session=require('express-session');
-const res = require('express/lib/response');
 
 app.use(express.json())
 app.use(express.urlencoded({extended:true}))
@@ -65,7 +64,7 @@ app.post('/register',async(req,res)=>{
      if(!token){
          res.send('no token is there')
      }else{
-         jwt.verify(token,"jwtSecret",(err,decoded)=>{
+         jwt.verify(token,"jwtsecret",(err,decoded)=>{
              if(err){
                  res.json({auth:false,message:'authorization failed'})
              }else{
@@ -78,7 +77,7 @@ app.post('/register',async(req,res)=>{
 
  }
 
- app.post('/isAuth',verifyJwt,(req,res)=>{
+ app.get('/isAuth',verifyJwt,(req,res)=>{
      return res.json({auth:true,message:'you are authenticated'})
  })
 app.post('/login',async(req,res)=>{
