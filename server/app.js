@@ -46,7 +46,7 @@ app.post('/register',async(req,res)=>{
             console.log(NewUser.rows[0]);
             const id=user.rows[0].user_id;
             const token= jwt.sign({id},'jwtsecret',{
-                expiresIn:300,
+                expiresIn:3000,
             })
             console.log(token);
             res.status(200).json({token:token,auth:true})
@@ -66,10 +66,12 @@ app.post('/register',async(req,res)=>{
      }else{
          jwt.verify(token,"jwtsecret",(err,decoded)=>{
              if(err){
-                 res.json({auth:false,message:'authorization failed'})
+                 return res.json({auth:false,message:'authorization failed'})
              }else{
                  console.log('success verification');
                  req.userId=decoded.id;
+                
+                //  console.log(req.userId)
                  next();
              }
          })
@@ -78,14 +80,33 @@ app.post('/register',async(req,res)=>{
  }
 
  app.get('/isAuth',verifyJwt,(req,res)=>{
-     return res.json({auth:true,message:'you are authenticated'})
+    const token=req.headers["x-access-token"];
+
+     return res.json({auth:true,message:'you are authenticated',userId:req.userId,token:token})
+ })
+
+ app.get('/getUserData',verifyJwt,async(req,res)=>{
+     try{
+         const userId=req.userId
+         console.log(userId)
+        const userData=await pool.query('SELECT * FROM users WHERE user_id=$1',[userId]);
+        const result=userData.rows[0]
+        console.log(result)
+   
+       res.json({result})
+     }
+     catch(err){
+         console.error(err.message)
+        res.status(400).json(err.message)
+    }
+     
  })
 app.post('/login',async(req,res)=>{
     try{
         let loginStatus=false
         const {username,password}=req.body;
         const user= await pool.query('SELECT * FROM users WHERE username=$1',[username]);
-        console.log(user);
+        // console.log(user);
         if(user.rowCount===1){
             const compPass=await bcrypt.compare(password,user.rows[0].password)
             if(compPass){
@@ -93,9 +114,9 @@ app.post('/login',async(req,res)=>{
                  req.session.user=user.rows[0];
                  const id=user.rows[0].user_id;
                  const token= jwt.sign({id},'jwtsecret',{
-                     expiresIn:300,
+                     expiresIn:3000,
                  })
-                 console.log(token);
+                //  console.log(token);
                  const result=user.rows[0];
                 // res.json([user,loginStatus]);
                 res.status(200).json({result,token:token,auth:true})
